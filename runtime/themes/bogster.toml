@@ -74,6 +74,7 @@
 # make diagnostic underlined, to distinguish with selection text.
 diagnostic = { modifiers = ["underlined"] }
 
+<<<<<<< HEAD
 [palette]
 bogster-yellow = "#dcb659"
 bogster-lblue = "#59dcd8"
@@ -94,3 +95,10 @@ bogster-base5 = "#abb2bf"
 
 bogster-fg0 = "#c6b8ad"
 bogster-fg1 = "#e5ded6"
+=======
+"ui.explorer.file" = { fg = "#e5ded6" }
+"ui.explorer.dir" = { fg = "#59dcd8" }
+"ui.explorer.exe" = { fg = "#e5ded6" }
+"ui.explorer.focus" = { modifiers = ["reversed"] }
+"ui.explorer.unfocus" = { bg = "#313f4e" }
+>>>>>>> b652f964 (tree helper and file explorer)
