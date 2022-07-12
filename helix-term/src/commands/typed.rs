@@ -519,9 +519,10 @@ fn write_quit(
 
     write_impl(cx, args.first(), false)?;
 
+    tokio::task::block_in_place(|| helix_lsp::block_on(cx.jobs.finish(Some(cx.editor), None)))?;
+
     let doc = doc_mut!(cx.editor);
 
-    tokio::task::block_in_place(|| helix_lsp::block_on(cx.jobs.finish()))?;
     tokio::task::block_in_place(|| helix_lsp::block_on(doc.try_flush_saves()))
         .map(|result| result.map(|_| ()))
         .unwrap_or(Ok(()))?;
@@ -1493,12 +1494,13 @@ fn tree_sitter_subtree(
             contents.push_str("\n```");
 
             let callback = async move {
-                let call: job::Callback =
-                    Box::new(move |editor: &mut Editor, compositor: &mut Compositor| {
+                let call: job::Callback = Callback::EditorCompositor(Box::new(
+                    move |editor: &mut Editor, compositor: &mut Compositor| {
                         let contents = ui::Markdown::new(contents, editor.syn_loader.clone());
                         let popup = Popup::new("hover", contents).auto_close(true);
                         compositor.replace_or_push("hover", popup);
-                    });
+                    },
+                ));
                 Ok(call)
             };
 
@@ -1606,8 +1608,8 @@ fn run_shell_command(
 
     if !output.is_empty() {
         let callback = async move {
-            let call: job::Callback =
-                Box::new(move |editor: &mut Editor, compositor: &mut Compositor| {
+            let call: job::Callback = Callback::EditorCompositor(Box::new(
+                move |editor: &mut Editor, compositor: &mut Compositor| {
                     let contents = ui::Markdown::new(
                         format!("```sh\n{}\n```", output),
                         editor.syn_loader.clone(),
@@ -1616,7 +1618,8 @@ fn run_shell_command(
                         helix_core::Position::new(editor.cursor().0.unwrap_or_default().row, 2),
                     ));
                     compositor.replace_or_push("shell", popup);
-                });
+                },
+            ));
             Ok(call)
         };
 
