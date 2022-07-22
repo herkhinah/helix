@@ -16,7 +16,7 @@ mod text;
 mod tree;
 
 use crate::compositor::{Component, Compositor};
-use crate::job;
+use crate::job::{self, Callback};
 pub use completion::Completion;
 pub use editor::EditorView;
 pub use explore::Explorer;
@@ -125,7 +125,7 @@ pub fn regex_prompt(
 
                             if event == PromptEvent::Validate {
                                 let callback = async move {
-                                    let call: job::Callback = Box::new(
+                                    let call: job::Callback = Callback::EditorCompositor(Box::new(
                                         move |_editor: &mut Editor, compositor: &mut Compositor| {
                                             let contents = Text::new(format!("{}", err));
                                             let size = compositor.size();
@@ -139,7 +139,7 @@ pub fn regex_prompt(
 
                                             compositor.replace_or_push("invalid-regex", popup);
                                         },
-                                    );
+                                    ));
                                     Ok(call)
                                 };
 
