@@ -661,6 +661,8 @@ pub struct Breakpoint {
 }
 
 pub struct Editor {
+    /// Current editing mode.
+    pub mode: Mode,
     pub tree: Tree,
     pub next_document_id: DocumentId,
     pub documents: BTreeMap<DocumentId, Document>,
@@ -743,6 +745,7 @@ impl Editor {
         area.height -= 1;
 
         Self {
+            mode: Mode::Normal,
             tree: Tree::new(area),
             next_document_id: DocumentId::default(),
             documents: BTreeMap::new(),
@@ -772,6 +775,11 @@ impl Editor {
             exit_code: 0,
             config_events: unbounded_channel(),
         }
+    }
+
+    /// Current editing mode for the [`Editor`].
+    pub fn mode(&self) -> Mode {
+        self.mode
     }
 
     pub fn config(&self) -> DynGuard<Config> {
@@ -1169,8 +1177,7 @@ impl Editor {
 
         // if leaving the view: mode should reset
         if prev_id != view_id {
-            let doc_id = self.tree.get(prev_id).doc;
-            self.documents.get_mut(&doc_id).unwrap().mode = Mode::Normal;
+            self.mode = Mode::Normal;
         }
     }
 
@@ -1181,8 +1188,7 @@ impl Editor {
 
         // if leaving the view: mode should reset
         if prev_id != id {
-            let doc_id = self.tree.get(prev_id).doc;
-            self.documents.get_mut(&doc_id).unwrap().mode = Mode::Normal;
+            self.mode = Mode::Normal;
         }
     }
 
@@ -1253,7 +1259,7 @@ impl Editor {
             let inner = view.inner_area();
             pos.col += inner.x as usize;
             pos.row += inner.y as usize;
-            let cursorkind = config.cursor_shape.from_mode(doc.mode());
+            let cursorkind = config.cursor_shape.from_mode(self.mode);
             (Some(pos), cursorkind)
         } else {
             (None, CursorKind::default())

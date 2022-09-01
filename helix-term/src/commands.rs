@@ -589,7 +589,7 @@ fn goto_line_end(cx: &mut Context) {
     goto_line_end_impl(
         view,
         doc,
-        if doc.mode == Mode::Select {
+        if cx.editor.mode == Mode::Select {
             Movement::Extend
         } else {
             Movement::Move
@@ -619,7 +619,7 @@ fn goto_line_end_newline(cx: &mut Context) {
     goto_line_end_newline_impl(
         view,
         doc,
-        if doc.mode == Mode::Select {
+        if cx.editor.mode == Mode::Select {
             Movement::Extend
         } else {
             Movement::Move
@@ -650,7 +650,7 @@ fn goto_line_start(cx: &mut Context) {
     goto_line_start_impl(
         view,
         doc,
-        if doc.mode == Mode::Select {
+        if cx.editor.mode == Mode::Select {
             Movement::Extend
         } else {
             Movement::Move
@@ -755,7 +755,7 @@ fn goto_first_nonwhitespace(cx: &mut Context) {
 
         if let Some(pos) = find_first_non_whitespace_char(text.line(line)) {
             let pos = pos + text.line_to_char(line);
-            range.put_cursor(text, pos, doc.mode == Mode::Select)
+            range.put_cursor(text, pos, cx.editor.mode == Mode::Select)
         } else {
             range
         }
@@ -955,7 +955,7 @@ where
     let motion = move |editor: &mut Editor| {
         let (view, doc) = current!(editor);
         let text = doc.text().slice(..);
-        let behavior = if doc.mode == Mode::Select {
+        let behavior = if editor.mode == Mode::Select {
             Movement::Extend
         } else {
             Movement::Move
@@ -988,7 +988,7 @@ fn goto_file_start(cx: &mut Context) {
         let selection = doc
             .selection(view.id)
             .clone()
-            .transform(|range| range.put_cursor(text, 0, doc.mode == Mode::Select));
+            .transform(|range| range.put_cursor(text, 0, cx.editor.mode == Mode::Select));
         push_jump(view, doc);
         doc.set_selection(view.id, selection);
     }
@@ -1001,7 +1001,7 @@ fn goto_file_end(cx: &mut Context) {
     let selection = doc
         .selection(view.id)
         .clone()
-        .transform(|range| range.put_cursor(text, pos, doc.mode == Mode::Select));
+        .transform(|range| range.put_cursor(text, pos, cx.editor.mode == Mode::Select));
     push_jump(view, doc);
     doc.set_selection(view.id, selection);
 }
@@ -1378,7 +1378,7 @@ pub fn scroll(cx: &mut Context, offset: usize, direction: Direction) {
     if line != cursor.row {
         let head = pos_at_coords(text, Position::new(line, cursor.col), true); // this func will properly truncate to line end
 
-        let anchor = if doc.mode == Mode::Select {
+        let anchor = if cx.editor.mode == Mode::Select {
             range.anchor
         } else {
             head
@@ -2101,7 +2101,7 @@ fn delete_selection_impl(cx: &mut Context, op: Operation) {
             exit_select_mode(cx);
         }
         Operation::Change => {
-            enter_insert_mode(doc);
+            enter_insert_mode(cx);
         }
     }
 }
@@ -2170,14 +2170,14 @@ fn ensure_selections_forward(cx: &mut Context) {
     doc.set_selection(view.id, selection);
 }
 
-fn enter_insert_mode(doc: &mut Document) {
-    doc.mode = Mode::Insert;
+fn enter_insert_mode(cx: &mut Context) {
+    cx.editor.mode = Mode::Insert;
 }
 
 // inserts at the start of each selection
 fn insert_mode(cx: &mut Context) {
+    enter_insert_mode(cx);
     let (view, doc) = current!(cx.editor);
-    enter_insert_mode(doc);
 
     log::trace!(
         "entering insert mode with sel: {:?}, text: {:?}",
@@ -2195,8 +2195,8 @@ fn insert_mode(cx: &mut Context) {
 
 // inserts at the end of each selection
 fn append_mode(cx: &mut Context) {
+    enter_insert_mode(cx);
     let (view, doc) = current!(cx.editor);
-    enter_insert_mode(doc);
     doc.restore_cursor = true;
     let text = doc.text().slice(..);
 
@@ -2461,9 +2461,9 @@ impl ui::menu::Item for MappableCommand {
 pub fn command_palette(cx: &mut Context) {
     cx.callback = Some(Box::new(
         move |compositor: &mut Compositor, cx: &mut compositor::Context| {
-            let doc = doc_mut!(cx.editor);
-            let keymap =
-                compositor.find::<ui::EditorView>().unwrap().keymaps.map()[&doc.mode].reverse_map();
+            let keymap = compositor.find::<ui::EditorView>().unwrap().keymaps.map()
+                [&cx.editor.mode]
+                .reverse_map();
 
             let mut commands: Vec<MappableCommand> = MappableCommand::STATIC_COMMAND_LIST.into();
             commands.extend(typed::TYPABLE_COMMAND_LIST.iter().map(|cmd| {
@@ -2504,14 +2504,13 @@ fn last_picker(cx: &mut Context) {
 // I inserts at the first nonwhitespace character of each line with a selection
 fn prepend_to_line(cx: &mut Context) {
     goto_first_nonwhitespace(cx);
-    let doc = doc_mut!(cx.editor);
-    enter_insert_mode(doc);
+    enter_insert_mode(cx);
 }
 
 // A inserts at the end of each line with a selection
 fn append_to_line(cx: &mut Context) {
+    enter_insert_mode(cx);
     let (view, doc) = current!(cx.editor);
-    enter_insert_mode(doc);
 
     let selection = doc.selection(view.id).clone().transform(|range| {
         let text = doc.text().slice(..);
@@ -2567,8 +2566,8 @@ pub enum Open {
 
 fn open(cx: &mut Context, open: Open) {
     let count = cx.count();
+    enter_insert_mode(cx);
     let (view, doc) = current!(cx.editor);
-    enter_insert_mode(doc);
 
     let text = doc.text().slice(..);
     let contents = doc.text();
@@ -2646,13 +2645,12 @@ fn open_above(cx: &mut Context) {
 }
 
 fn normal_mode(cx: &mut Context) {
-    let (view, doc) = current!(cx.editor);
-
-    if doc.mode == Mode::Normal {
+    if cx.editor.mode == Mode::Normal {
         return;
     }
 
-    doc.mode = Mode::Normal;
+    cx.editor.mode = Mode::Normal;
+    let (view, doc) = current!(cx.editor);
 
     try_restore_indent(doc, view.id);
 
@@ -2730,7 +2728,7 @@ fn goto_line_impl(editor: &mut Editor, count: Option<NonZeroUsize>) {
         let selection = doc
             .selection(view.id)
             .clone()
-            .transform(|range| range.put_cursor(text, pos, doc.mode == Mode::Select));
+            .transform(|range| range.put_cursor(text, pos, editor.mode == Mode::Select));
 
         push_jump(view, doc);
         doc.set_selection(view.id, selection);
@@ -2750,7 +2748,7 @@ fn goto_last_line(cx: &mut Context) {
     let selection = doc
         .selection(view.id)
         .clone()
-        .transform(|range| range.put_cursor(text, pos, doc.mode == Mode::Select));
+        .transform(|range| range.put_cursor(text, pos, cx.editor.mode == Mode::Select));
 
     push_jump(view, doc);
     doc.set_selection(view.id, selection);
@@ -2773,7 +2771,7 @@ fn goto_last_modification(cx: &mut Context) {
         let selection = doc
             .selection(view.id)
             .clone()
-            .transform(|range| range.put_cursor(text, pos, doc.mode == Mode::Select));
+            .transform(|range| range.put_cursor(text, pos, cx.editor.mode == Mode::Select));
         doc.set_selection(view.id, selection);
     }
 }
@@ -2810,13 +2808,12 @@ fn select_mode(cx: &mut Context) {
     });
     doc.set_selection(view.id, selection);
 
-    doc_mut!(cx.editor).mode = Mode::Select;
+    cx.editor.mode = Mode::Select;
 }
 
 fn exit_select_mode(cx: &mut Context) {
-    let doc = doc_mut!(cx.editor);
-    if doc.mode == Mode::Select {
-        doc.mode = Mode::Normal;
+    if cx.editor.mode == Mode::Select {
+        cx.editor.mode = Mode::Normal;
     }
 }
 
@@ -3479,11 +3476,11 @@ fn paste_impl(values: &[String], doc: &mut Document, view: &View, action: Paste,
 
 pub(crate) fn paste_bracketed_value(cx: &mut Context, contents: String) {
     let count = cx.count();
-    let (view, doc) = current!(cx.editor);
-    let paste = match doc.mode {
+    let paste = match cx.editor.mode {
         Mode::Insert | Mode::Select => Paste::Cursor,
         Mode::Normal => Paste::Before,
     };
+    let (view, doc) = current!(cx.editor);
     paste_impl(&[contents], doc, view, paste, count);
 }
 
@@ -3878,8 +3875,7 @@ pub fn completion(cx: &mut Context) {
     cx.callback(
         future,
         move |editor, compositor, response: Option<lsp::CompletionResponse>| {
-            let doc = doc!(editor);
-            if doc.mode() != Mode::Insert {
+            if editor.mode != Mode::Insert {
                 // we're not in insert mode anymore
                 return;
             }
@@ -4086,7 +4082,7 @@ fn match_brackets(cx: &mut Context) {
             if let Some(pos) =
                 match_brackets::find_matching_bracket_fuzzy(syntax, doc.text(), range.cursor(text))
             {
-                range.put_cursor(text, pos, doc.mode == Mode::Select)
+                range.put_cursor(text, pos, cx.editor.mode == Mode::Select)
             } else {
                 range
             }
