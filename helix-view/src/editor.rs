@@ -225,6 +225,8 @@ pub struct Config {
     pub rulers: Vec<u16>,
     #[serde(default)]
     pub whitespace: WhitespaceConfig,
+    /// Persistently display open buffers along the top
+    pub bufferline: BufferLine,
     /// Vertical indent width guides.
     pub indent_guides: IndentGuidesConfig,
     /// Whether to color modes with different colors. Defaults to `false`.
@@ -432,6 +434,24 @@ impl Default for CursorShapeConfig {
     }
 }
 
+/// bufferline render modes
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BufferLine {
+    /// Don't render bufferline
+    Never,
+    /// Always render
+    Always,
+    /// Only if multiple buffers are open
+    Multiple,
+}
+
+impl Default for BufferLine {
+    fn default() -> Self {
+        BufferLine::Never
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum LineNumber {
@@ -619,6 +639,7 @@ impl Default for Config {
             terminal: get_terminal_provider(),
             rulers: Vec::new(),
             whitespace: WhitespaceConfig::default(),
+            bufferline: BufferLine::default(),
             indent_guides: IndentGuidesConfig::default(),
             color_modes: false,
             explorer: ExplorerConfig::default(),
