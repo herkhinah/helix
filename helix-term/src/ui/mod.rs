@@ -1,6 +1,7 @@
 mod completion;
 pub(crate) mod editor;
 mod explore;
+mod fuzzy_match;
 mod info;
 pub mod lsp;
 mod markdown;
