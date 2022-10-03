@@ -14,6 +14,8 @@ mod statusline;
 mod text;
 mod tree;
 
+use crate::compositor::{Component, Compositor};
+use crate::job;
 pub use completion::Completion;
 pub use editor::EditorView;
 pub use explore::Explorer;
@@ -114,7 +116,37 @@ pub fn regex_prompt(
 
                             view.ensure_cursor_in_view(doc, config.scrolloff);
                         }
-                        Err(_err) => (), // TODO: mark command line as error
+                        Err(err) => {
+                            let (view, doc) = current!(cx.editor);
+                            doc.set_selection(view.id, snapshot.clone());
+                            view.offset = offset_snapshot;
+
+                            if event == PromptEvent::Validate {
+                                let callback = async move {
+                                    let call: job::Callback = Box::new(
+                                        move |_editor: &mut Editor, compositor: &mut Compositor| {
+                                            let contents = Text::new(format!("{}", err));
+                                            let size = compositor.size();
+                                            let mut popup = Popup::new("invalid-regex", contents)
+                                                .position(Some(helix_core::Position::new(
+                                                    size.height as usize - 2, // 2 = statusline + commandline
+                                                    0,
+                                                )))
+                                                .auto_close(true);
+                                            popup.required_size((size.width, size.height));
+
+                                            compositor.replace_or_push("invalid-regex", popup);
+                                        },
+                                    );
+                                    Ok(call)
+                                };
+
+                                cx.jobs.callback(callback);
+                            } else {
+                                // Update
+                                // TODO: mark command line as error
+                            }
+                        }
                     }
                 }
             }
