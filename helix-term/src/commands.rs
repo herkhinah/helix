@@ -1523,7 +1523,8 @@ fn select_regex(cx: &mut Context) {
         "select:".into(),
         Some(reg),
         ui::completers::none,
-        move |view, doc, regex, event| {
+        move |editor, regex, event| {
+            let (view, doc) = current!(editor);
             if !matches!(event, PromptEvent::Update | PromptEvent::Validate) {
                 return;
             }
@@ -1544,7 +1545,8 @@ fn split_selection(cx: &mut Context) {
         "split:".into(),
         Some(reg),
         ui::completers::none,
-        move |view, doc, regex, event| {
+        move |editor, regex, event| {
+            let (view, doc) = current!(editor);
             if !matches!(event, PromptEvent::Update | PromptEvent::Validate) {
                 return;
             }
@@ -1566,10 +1568,8 @@ fn split_selection_on_newline(cx: &mut Context) {
     doc.set_selection(view.id, selection);
 }
 
-#[allow(clippy::too_many_arguments)]
 fn search_impl(
-    doc: &mut Document,
-    view: &mut View,
+    editor: &mut Editor,
     contents: &str,
     regex: &Regex,
     movement: Movement,
@@ -1577,6 +1577,7 @@ fn search_impl(
     scrolloff: usize,
     wrap_around: bool,
 ) {
+    let (view, doc) = current!(editor);
     let text = doc.text().slice(..);
     let selection = doc.selection(view.id);
 
@@ -1606,16 +1607,24 @@ fn search_impl(
         Direction::Backward => regex.find_iter(&contents[..start]).last(),
     };
 
-    if wrap_around && mat.is_none() {
-        mat = match direction {
-            Direction::Forward => regex.find(contents),
-            Direction::Backward => {
-                offset = start;
-                regex.find_iter(&contents[start..]).last()
-            }
+    if mat.is_none() {
+        if wrap_around {
+            mat = match direction {
+                Direction::Forward => regex.find(contents),
+                Direction::Backward => {
+                    offset = start;
+                    regex.find_iter(&contents[start..]).last()
+                }
+            };
+            editor.set_status("Wrapped around document");
+        } else {
+            editor.set_error("No more matches");
         }
-        // TODO: message on wraparound
     }
+
+    let (view, doc) = current!(editor);
+    let text = doc.text().slice(..);
+    let selection = doc.selection(view.id);
 
     if let Some(mat) = mat {
         let start = text.byte_to_char(mat.start() + offset);
@@ -1692,13 +1701,12 @@ fn searcher(cx: &mut Context, direction: Direction) {
                 .map(|comp| (0.., std::borrow::Cow::Owned(comp.clone())))
                 .collect()
         },
-        move |view, doc, regex, event| {
+        move |editor, regex, event| {
             if !matches!(event, PromptEvent::Update | PromptEvent::Validate) {
                 return;
             }
             search_impl(
-                doc,
-                view,
+                editor,
                 &contents,
                 &regex,
                 Movement::Move,
@@ -1714,7 +1722,7 @@ fn search_next_or_prev_impl(cx: &mut Context, movement: Movement, direction: Dir
     let count = cx.count();
     let config = cx.editor.config();
     let scrolloff = config.scrolloff;
-    let (view, doc) = current!(cx.editor);
+    let (_, doc) = current!(cx.editor);
     let registers = &cx.editor.registers;
     if let Some(query) = registers.read('/').and_then(|query| query.last()) {
         let contents = doc.text().slice(..).to_string();
@@ -1732,8 +1740,7 @@ fn search_next_or_prev_impl(cx: &mut Context, movement: Movement, direction: Dir
         {
             for _ in 0..count {
                 search_impl(
-                    doc,
-                    view,
+                    cx.editor,
                     &contents,
                     &regex,
                     movement,
@@ -1837,7 +1844,7 @@ fn global_search(cx: &mut Context) {
                 .map(|comp| (0.., std::borrow::Cow::Owned(comp.clone())))
                 .collect()
         },
-        move |_view, _doc, regex, event| {
+        move |_editor, regex, event| {
             if event != PromptEvent::Validate {
                 return;
             }
@@ -3813,7 +3820,8 @@ fn keep_or_remove_selections_impl(cx: &mut Context, remove: bool) {
         if remove { "remove:" } else { "keep:" }.into(),
         Some(reg),
         ui::completers::none,
-        move |view, doc, regex, event| {
+        move |editor, regex, event| {
+            let (view, doc) = current!(editor);
             if !matches!(event, PromptEvent::Update | PromptEvent::Validate) {
                 return;
             }
