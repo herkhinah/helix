@@ -187,6 +187,8 @@ pub struct Config {
     pub line_number: LineNumber,
     /// Highlight the lines cursors are currently on. Defaults to false.
     pub cursorline: bool,
+    /// Highlight the columns cursors are currently on. Defaults to false.
+    pub cursorcolumn: bool,
     /// Gutters. Default ["diagnostics", "line-numbers"]
     pub gutters: Vec<GutterType>,
     /// Middle click paste support. Defaults to true.
@@ -647,6 +649,7 @@ impl Default for Config {
             },
             line_number: LineNumber::Absolute,
             cursorline: false,
+            cursorcolumn: false,
             gutters: vec![GutterType::Diagnostics, GutterType::LineNumbers],
             middle_click_paste: true,
             auto_pairs: AutoPairConfig::default(),
