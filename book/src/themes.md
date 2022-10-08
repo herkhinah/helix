@@ -103,6 +103,9 @@ inherits = "boo_berry"
 [palette]
 berry = "#2A2A4D"
 ```
+> Note: The `underlined` modifier is deprecated and only available for backwards compatability.
+> It's behaviour is equivalent to `underline-style="line"`
+
 ### Underline Style
 
 One of the following values may be used as an `underline-style`. 
