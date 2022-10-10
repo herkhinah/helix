@@ -990,7 +990,7 @@ impl EditorView {
                         InsertEvent::CompletionApply(compl) => {
                             let (view, doc) = current!(cxt.editor);
 
-                            doc.restore(view.id);
+                            doc.restore(view);
 
                             let text = doc.text().slice(..);
                             let cursor = doc.selection(view.id).primary().cursor(text);
@@ -1005,6 +1005,7 @@ impl EditorView {
                                 }),
                             );
                             doc.apply(&tx, view.id);
+                            view.apply(&tx, doc);
                         }
                         InsertEvent::TriggerCompletion => {
                             let (_, doc) = current!(cxt.editor);
