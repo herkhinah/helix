@@ -171,7 +171,7 @@ impl EditorView {
             }
         }
 
-        self.render_diagnostics(doc, view, inner, surface, theme);
+        Self::render_diagnostics(doc, view, inner, surface, theme);
 
         let statusline_area = view
             .area
@@ -767,7 +767,6 @@ impl EditorView {
     }
 
     pub fn render_diagnostics(
-        &self,
         doc: &Document,
         view: &View,
         viewport: Rect,
