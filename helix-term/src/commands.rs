@@ -2008,7 +2008,7 @@ fn global_search(cx: &mut Context) {
                         align_view(doc, view, Align::Center);
                     },
                     |_editor, FileResult { path, line_num }| {
-                        Some((path.clone(), Some((*line_num, *line_num))))
+                        Some((path.clone().into(), Some((*line_num, *line_num))))
                     },
                 );
                 compositor.push(Box::new(overlayed(picker)));
@@ -2400,7 +2400,7 @@ fn buffer_picker(cx: &mut Context) {
                 .selection(view_id)
                 .primary()
                 .cursor_line(doc.text().slice(..));
-            Some((meta.path.clone()?, Some((line, line))))
+            Some((meta.id.into(), Some((line, line))))
         },
     );
     cx.push_layer(Box::new(overlayed(picker)));
@@ -2481,7 +2481,7 @@ fn jumplist_picker(cx: &mut Context) {
         |editor, meta| {
             let doc = &editor.documents.get(&meta.id)?;
             let line = meta.selection.primary().cursor_line(doc.text().slice(..));
-            Some((meta.path.clone()?, Some((line, line))))
+            Some((meta.path.clone()?.into(), Some((line, line))))
         },
     );
     cx.push_layer(Box::new(overlayed(picker)));
