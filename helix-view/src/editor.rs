@@ -1025,7 +1025,8 @@ impl Editor {
     fn _refresh(&mut self) {
         let config = self.config();
         for (view, _) in self.tree.views_mut() {
-            let doc = &self.documents[&view.doc];
+            let doc = doc_mut!(self, &view.doc);
+            view.sync_changes(doc);
             view.ensure_cursor_in_view(doc, config.scrolloff)
         }
     }
@@ -1037,6 +1038,7 @@ impl Editor {
 
         let doc = doc_mut!(self, &doc_id);
         doc.ensure_view_init(view.id);
+        view.sync_changes(doc);
 
         align_view(doc, view, Align::Center);
     }
@@ -1305,6 +1307,9 @@ impl Editor {
         // within view
         if prev_id != view_id {
             self.mode = Mode::Normal;
+            let view = view_mut!(self, view_id);
+            let doc = doc_mut!(self, &view.doc);
+            view.sync_changes(doc);
             self.ensure_cursor_in_view(view_id);
         }
     }
