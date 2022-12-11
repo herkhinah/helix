@@ -72,6 +72,12 @@ label = "honey"
 "ui.menu.selected" = { fg = "revolver", bg = "white" }
 "ui.menu.scroll" = { fg = "lavender", bg = "comet" }
 
+"ui.explorer.file" = { fg = "delta" }
+"ui.explorer.dir" = { fg = "white" }
+"ui.explorer.exe" = { fg = "mint" }
+"ui.explorer.focus" = { modifiers = ["reversed"] }
+"ui.explorer.unfocus" = { bg = "revolver" }
+
 "diagnostic.hint" = { underline = { color = "silver", style = "curl" } }
 "diagnostic.info" = { underline = { color = "delta", style = "curl" } }
 "diagnostic.warning" = { underline = { color = "lightning", style = "curl" } }
@@ -101,3 +107,4 @@ honey = "#efba5d"
 apricot = "#f47868"
 lightning = "#ffcd1c"
 delta = "#6F44F0"
+
