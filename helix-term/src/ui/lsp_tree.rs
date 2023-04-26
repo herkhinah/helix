@@ -5,7 +5,7 @@ use helix_lsp::lsp;
 use super::tree::*;
 
 struct Item<'a> {
-    item: Pin<&'a lsp::DocumentSymbol>,
+    item: &'a lsp::DocumentSymbol,
     row: usize,
 
     children: Vec<Index>,
@@ -15,7 +15,7 @@ struct Item<'a> {
 }
 
 impl<'a> TreeItem for Item<'a> {
-    type Data = Pin<&'a lsp::DocumentSymbol>;
+    type Data = Index;
 
     fn child(&self, row: usize) -> Index {
         self.children[row]
@@ -26,7 +26,7 @@ impl<'a> TreeItem for Item<'a> {
     }
 
     fn data(&self, column: usize) -> Self::Data {
-        self.item.as_ref()
+        self.children[column]
     }
 
     fn row(&self) -> usize {
@@ -43,15 +43,22 @@ impl<'a> TreeItem for Item<'a> {
 }
 
 struct LspTreeModel<'a> {
-    symbols: Pin<Vec<lsp::DocumentSymbol>>,
+    symbols: Vec<lsp::DocumentSymbol>,
 
-    items: Vec<Pin<Item<'a>>>,
+    lsp_items: Vec<Item<'a>>,
 }
 
-impl<'a, 'b: 'a> LspTreeModel<'a> {
-    fn initialize(&'b mut self) {
+impl<'a> LspTreeModel<'a> {
+    pub fn new(symbols: Vec<lsp::DocumentSymbol>) -> Self {
+        Self {
+            symbols,
+            lsp_items: Vec::new(),
+        }
+    }
+
+    pub fn initialize(&'a mut self) {
         fn traverse_children<'a, 'b: 'a, 'c: 'b>(
-            store: &'a mut Vec<Item<'b>>,
+            lsp_items: &'a mut Vec<Item<'b>>,
             item: Option<Item<'b>>,
             next_row: &mut usize,
             parent: Option<Index>,
@@ -59,14 +66,14 @@ impl<'a, 'b: 'a> LspTreeModel<'a> {
         ) {
             let mut index: Option<usize> = None;
             if let Some(item) = item {
-                index = Some(store.len());
-                store.as_mut().push(item);
+                index = Some(lsp_items.len());
+                lsp_items.push(item);
             }
 
             let mut indices: Vec<Index> = Vec::with_capacity(children.len());
 
             for item in children {
-                let index = store.len();
+                let index = lsp_items.len();
                 indices.push(Index(index));
 
                 let row = *next_row;
@@ -85,26 +92,24 @@ impl<'a, 'b: 'a> LspTreeModel<'a> {
                     None => continue,
                 };
 
-                traverse_children(store, Some(item_), next_row, Some(Index(index)), &children);
+                traverse_children(
+                    lsp_items,
+                    Some(item_),
+                    next_row,
+                    Some(Index(index)),
+                    children,
+                );
             }
 
             if let Some(index) = index {
-                store[index].children = indices;
+                lsp_items[index].children = indices;
             }
         }
 
         let mut next_row = 0usize;
 
-        traverse_children(&mut self.items, None, &mut next_row, None, &self.symbols);
-    }
+        let Self { symbols, lsp_items } = self;
 
-    pub fn new(symbols: Vec<lsp::DocumentSymbol>) -> Self {
-        let mut model = Self {
-            symbols,
-            items: Pin::new(Vec::new()),
-        };
-
-        Self::initialize(&mut model);
-        model
+        traverse_children(lsp_items, None, &mut next_row, None, symbols);
     }
 }
