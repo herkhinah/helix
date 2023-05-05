@@ -26,7 +26,7 @@ use helix_view::{
 use crate::{
     compositor::{self, Compositor},
     ui::{
-        self, lsp::SignatureHelp, overlay::overlayed, DynamicPicker, FileLocation, FilePicker,
+        self, lsp::SignatureHelp, overlay::overlayed, DynamicPicker, FileLocation, ListPicker,
         Popup, PromptEvent,
     },
 };
@@ -213,9 +213,9 @@ fn sym_picker(
     symbols: Vec<lsp::SymbolInformation>,
     current_path: Option<lsp::Url>,
     offset_encoding: OffsetEncoding,
-) -> FilePicker<lsp::SymbolInformation> {
+) -> ListPicker<lsp::SymbolInformation> {
     // TODO: drop current_path comparison and instead use workspace: bool flag?
-    FilePicker::new(
+    ListPicker::new(
         symbols,
         current_path.clone(),
         move |cx, symbol, action| {
@@ -268,7 +268,7 @@ fn diag_picker(
     current_path: Option<lsp::Url>,
     format: DiagnosticsFormat,
     offset_encoding: OffsetEncoding,
-) -> FilePicker<PickerDiagnostic> {
+) -> ListPicker<PickerDiagnostic> {
     // TODO: drop current_path comparison and instead use workspace: bool flag?
 
     // flatten the map to a vec of (url, diag) pairs
@@ -290,7 +290,7 @@ fn diag_picker(
         error: cx.editor.theme.get("error"),
     };
 
-    FilePicker::new(
+    ListPicker::new(
         flat_diag,
         (styles, format),
         move |cx, PickerDiagnostic { url, diag }, action| {
@@ -947,7 +947,7 @@ fn goto_impl(
             editor.set_error("No definition found.");
         }
         _locations => {
-            let picker = FilePicker::new(
+            let picker = ListPicker::new(
                 locations,
                 cwdir,
                 move |cx, location, action| {

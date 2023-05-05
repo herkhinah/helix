@@ -1,3 +1,4 @@
+use super::{TreeOp, TreeView, TreeViewItem};
 use crate::{
     alt,
     compositor::{Component, Compositor, Context, Event, EventResult},
@@ -75,7 +76,7 @@ type FileCallback<T> = Box<dyn Fn(&Editor, &T) -> Option<FileLocation>>;
 /// File path and range of lines (used to align and highlight lines)
 pub type FileLocation = (PathOrId, Option<(usize, usize)>);
 
-pub struct ListPicker<T: Item> {
+pub struct FilePicker<T: Item> {
     picker: Picker<T>,
     pub truncate_start: bool,
     /// Caches paths to documents
@@ -122,7 +123,7 @@ impl Preview<'_, '_> {
     }
 }
 
-impl<T: Item> ListPicker<T> {
+impl<T: Item> FilePicker<T> {
     pub fn new(
         options: Vec<T>,
         editor_data: T::Data,
@@ -234,7 +235,7 @@ impl<T: Item> ListPicker<T> {
     }
 }
 
-impl<T: Item + 'static> Component for ListPicker<T> {
+impl<T: Item + 'static> Component for FilePicker<T> {
     fn render(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context) {
         // +---------+ +---------+
         // |prompt   | |preview  |
@@ -908,7 +909,7 @@ pub type DynQueryCallback<T> =
 /// A picker that updates its contents via a callback whenever the
 /// query string changes. Useful for live grep, workspace symbols, etc.
 pub struct DynamicPicker<T: ui::menu::Item + Send> {
-    file_picker: ListPicker<T>,
+    file_picker: FilePicker<T>,
     query_callback: DynQueryCallback<T>,
     query: String,
 }
@@ -916,7 +917,7 @@ pub struct DynamicPicker<T: ui::menu::Item + Send> {
 impl<T: ui::menu::Item + Send> DynamicPicker<T> {
     pub const ID: &'static str = "dynamic-picker";
 
-    pub fn new(file_picker: ListPicker<T>, query_callback: DynQueryCallback<T>) -> Self {
+    pub fn new(file_picker: FilePicker<T>, query_callback: DynQueryCallback<T>) -> Self {
         Self {
             file_picker,
             query_callback,

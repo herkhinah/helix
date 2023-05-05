@@ -509,7 +509,7 @@ impl Explorer {
                 ("q", "Close"),
             ]
             .into_iter()
-            .chain(ui::tree::tree_view_help().into_iter())
+            .chain(ui::legacytree::tree_view_help().into_iter())
             .collect::<Vec<_>>(),
         )
         .render(area, surface, cx)

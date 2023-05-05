@@ -4,7 +4,9 @@ pub(crate) mod editor;
 mod explorer;
 mod fuzzy_match;
 mod info;
+mod legacytree;
 pub mod lsp;
+pub mod lsp_tree;
 mod markdown;
 pub mod menu;
 pub mod overlay;
@@ -14,7 +16,8 @@ mod prompt;
 mod spinner;
 mod statusline;
 mod text;
-mod tree;
+pub mod tree;
+pub mod tree_picker;
 
 use crate::compositor::{Component, Compositor};
 use crate::filter_picker_entry;
@@ -22,14 +25,14 @@ use crate::job::{self, Callback};
 pub use completion::Completion;
 pub use editor::EditorView;
 pub use explorer::Explorer;
+pub use legacytree::{TreeOp, TreeView, TreeViewItem};
 pub use markdown::Markdown;
 pub use menu::Menu;
-pub use picker::{DynamicPicker, FileLocation, FilePicker, Picker};
+pub use picker::{DynamicPicker, FileLocation, ListPicker, Picker};
 pub use popup::Popup;
 pub use prompt::{Prompt, PromptEvent};
 pub use spinner::{ProgressSpinners, Spinner};
 pub use text::Text;
-pub use tree::{TreeOp, TreeView, TreeViewItem};
 
 use helix_core::regex::Regex;
 use helix_core::regex::RegexBuilder;
@@ -162,7 +165,7 @@ pub fn regex_prompt(
     cx.push_layer(Box::new(prompt));
 }
 
-pub fn file_picker(root: PathBuf, config: &helix_view::editor::Config) -> FilePicker<PathBuf> {
+pub fn file_picker(root: PathBuf, config: &helix_view::editor::Config) -> ListPicker<PathBuf> {
     use ignore::{types::TypesBuilder, WalkBuilder};
     use std::time::Instant;
 
@@ -221,7 +224,7 @@ pub fn file_picker(root: PathBuf, config: &helix_view::editor::Config) -> FilePi
 
     log::debug!("file_picker init {:?}", Instant::now().duration_since(now));
 
-    FilePicker::new(
+    ListPicker::new(
         files,
         root,
         move |cx, path: &PathBuf, action| {

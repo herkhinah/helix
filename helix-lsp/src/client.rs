@@ -352,6 +352,7 @@ impl Client {
                         completion_item_kind: Some(lsp::CompletionItemKindCapability {
                             ..Default::default()
                         }),
+
                         context_support: None, // additional context information Some(true)
                         ..Default::default()
                     }),
@@ -360,6 +361,12 @@ impl Client {
                         // badly formatted.
                         content_format: Some(vec![lsp::MarkupKind::Markdown]),
                         ..Default::default()
+                    }),
+                    document_symbol: Some(lsp::DocumentSymbolClientCapabilities {
+                        dynamic_registration: None,
+                        symbol_kind: None,
+                        hierarchical_document_symbol_support: Some(true),
+                        tag_support: None,
                     }),
                     signature_help: Some(lsp::SignatureHelpClientCapabilities {
                         signature_information: Some(lsp::SignatureInformationSettings {

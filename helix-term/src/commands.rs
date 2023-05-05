@@ -54,8 +54,8 @@ use crate::{
     job::Callback,
     keymap::ReverseKeymap,
     ui::{
-        self, editor::InsertEvent, overlay::overlayed, FilePicker, Picker, Popup, Prompt,
-        PromptEvent,
+        self, editor::InsertEvent, lsp_tree::tree_symbol_picker, overlay::overlayed, ListPicker,
+        Picker, Popup, Prompt, PromptEvent,
     },
 };
 
@@ -298,7 +298,7 @@ impl MappableCommand {
         code_action, "Perform code action",
         buffer_picker, "Open buffer picker",
         jumplist_picker, "Open jumplist picker",
-        symbol_picker, "Open symbol picker",
+        tree_symbol_picker, "Open symbol picker",
         select_references_to_symbol_under_cursor, "Select symbol references",
         workspace_symbol_picker, "Open workspace symbol picker",
         diagnostics_picker, "Open diagnostic picker",
@@ -2115,7 +2115,7 @@ fn global_search(cx: &mut Context) {
                     return;
                 }
 
-                let picker = FilePicker::new(
+                let picker = ListPicker::new(
                     all_matches,
                     current_path,
                     move |cx, FileResult { path, line_num }, action| {
@@ -2534,7 +2534,7 @@ fn buffer_picker(cx: &mut Context) {
         is_current: doc.id() == current,
     };
 
-    let picker = FilePicker::new(
+    let picker = ListPicker::new(
         cx.editor
             .documents
             .values()
@@ -2612,7 +2612,7 @@ fn jumplist_picker(cx: &mut Context) {
         }
     };
 
-    let picker = FilePicker::new(
+    let picker = ListPicker::new(
         cx.editor
             .tree
             .views()

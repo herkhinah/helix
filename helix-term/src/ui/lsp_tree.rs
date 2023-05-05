@@ -1,20 +1,21 @@
-use std::pin::{pin, Pin};
-
 use helix_lsp::lsp;
+
+use crate::{
+    commands::Context,
+    ui::{overlay::overlayed, tree::TreeView},
+};
 
 use super::tree::*;
 
-struct Item<'a> {
-    item: &'a lsp::DocumentSymbol,
-    row: usize,
-
+struct Item {
+    item: lsp::DocumentSymbol,
     children: Vec<Index>,
-
-    index: Index,
+    ix: Index,
+    child_ix: usize,
     parent: Option<Index>,
 }
 
-impl<'a> TreeItem for Item<'a> {
+impl TreeItem for Item {
     type Data = Index;
 
     fn child(&self, row: usize) -> Index {
@@ -29,10 +30,6 @@ impl<'a> TreeItem for Item<'a> {
         self.children[column]
     }
 
-    fn row(&self) -> usize {
-        self.row
-    }
-
     fn parent(&self) -> Option<Index> {
         self.parent
     }
@@ -40,76 +37,150 @@ impl<'a> TreeItem for Item<'a> {
     fn render(&self) -> &str {
         self.item.name.as_str()
     }
+
+    fn child_index(&self) -> usize {
+        self.child_ix
+    }
+
+    fn index(&self) -> Index {
+        self.ix
+    }
 }
 
-struct LspTreeModel<'a> {
-    symbols: Vec<lsp::DocumentSymbol>,
-
-    lsp_items: Vec<Item<'a>>,
+struct LspTreeModel {
+    pub roots: Vec<Index>,
+    pub lsp_items: Vec<Item>,
 }
 
-impl<'a> LspTreeModel<'a> {
+impl LspTreeModel {
     pub fn new(symbols: Vec<lsp::DocumentSymbol>) -> Self {
-        Self {
-            symbols,
-            lsp_items: Vec::new(),
-        }
-    }
+        log::debug!("symbols: {:?}", symbols);
 
-    pub fn initialize(&'a mut self) {
-        fn traverse_children<'a, 'b: 'a, 'c: 'b>(
-            lsp_items: &'a mut Vec<Item<'b>>,
-            item: Option<Item<'b>>,
-            next_row: &mut usize,
+        fn tr2(
+            lsp_items: &mut Vec<Item>,
+            mut node: lsp::DocumentSymbol,
             parent: Option<Index>,
-            children: &'c Vec<lsp::DocumentSymbol>,
-        ) {
-            let mut index: Option<usize> = None;
-            if let Some(item) = item {
-                index = Some(lsp_items.len());
-                lsp_items.push(item);
+            child_ix: usize,
+        ) -> Index {
+            let index = lsp_items.len();
+            let mut children = Vec::new();
+
+            if let Some(children_) = &mut node.children {
+                std::mem::swap(&mut children, children_);
             }
 
-            let mut indices: Vec<Index> = Vec::with_capacity(children.len());
+            lsp_items.push(Item {
+                item: node,
+                children: Vec::new(),
+                ix: Index(index),
+                child_ix,
+                parent,
+            });
 
-            for item in children {
-                let index = lsp_items.len();
-                indices.push(Index(index));
+            let mut children: Vec<Index> = children
+                .into_iter()
+                .enumerate()
+                .map(|(child_ix, child)| tr2(lsp_items, child, Some(Index(index)), child_ix))
+                .collect();
 
-                let row = *next_row;
+            std::mem::swap(&mut children, &mut lsp_items[index].children);
 
-                *next_row += 1;
-                let item_ = Item {
-                    item,
-                    row,
-                    index: Index(index),
-                    parent,
-                    children: Vec::new(),
-                };
-
-                let children = match &item.children {
-                    Some(children) => children,
-                    None => continue,
-                };
-
-                traverse_children(
-                    lsp_items,
-                    Some(item_),
-                    next_row,
-                    Some(Index(index)),
-                    children,
-                );
-            }
-
-            if let Some(index) = index {
-                lsp_items[index].children = indices;
-            }
+            Index(index)
         }
 
-        let mut next_row = 0usize;
+        let mut items = Vec::new();
+        let roots = symbols
+            .into_iter()
+            .enumerate()
+            .map(|(child_ix, item)| tr2(&mut items, item, None, child_ix))
+            .collect();
 
-        let Self { symbols, lsp_items } = self;
-
-        traverse_children(lsp_items, None, &mut next_row, None, symbols);
+        Self {
+            lsp_items: items,
+            roots,
+        }
     }
+}
+
+impl TreeModel for LspTreeModel {
+    type Data = Item;
+
+    fn get_item(&self, ix: Index) -> &Self::Data {
+        &self.lsp_items[*ix]
+    }
+
+    fn parent(&self, ix: &Index) -> Option<Index> {
+        self.lsp_items[**ix].parent
+    }
+
+    fn row_count(&self) -> usize {
+        self.lsp_items.len()
+    }
+
+    fn column_count(&self) -> usize {
+        1
+    }
+
+    fn get_roots(&self) -> &[Index] {
+        &self.roots
+    }
+}
+
+pub fn tree_symbol_picker(cx: &mut Context) {
+    fn nested_to_flat(
+        list: &mut Vec<lsp::SymbolInformation>,
+        file: &lsp::TextDocumentIdentifier,
+        symbol: lsp::DocumentSymbol,
+    ) {
+        #[allow(deprecated)]
+        list.push(lsp::SymbolInformation {
+            name: symbol.name,
+            kind: symbol.kind,
+            tags: symbol.tags,
+            deprecated: symbol.deprecated,
+            location: lsp::Location::new(file.uri.clone(), symbol.selection_range),
+            container_name: None,
+        });
+        for child in symbol.children.into_iter().flatten() {
+            nested_to_flat(list, file, child);
+        }
+    }
+    let doc = doc!(cx.editor);
+    let language_server = match doc.language_server() {
+        Some(language_server) => language_server,
+        None => {
+            cx.editor
+                .set_status("Language server not active for current buffer");
+            return;
+        }
+    };
+
+    let current_url = doc.url();
+    let offset_encoding = language_server.offset_encoding();
+
+    let future = match language_server.document_symbols(doc.identifier()) {
+        Some(future) => future,
+        None => {
+            cx.editor
+                .set_error("Language server does not support document symbols");
+            return;
+        }
+    };
+
+    cx.callback(
+        future,
+        move |editor, compositor, response: Option<lsp::DocumentSymbolResponse>| {
+            if let Some(lsp::DocumentSymbolResponse::Nested(symbols)) = response {
+                log::debug!("tree");
+                // lsp has two ways to represent symbols (flat/nested)
+                // convert the nested variant to flat, so that we have a homogeneous list
+                let mut model = LspTreeModel::new(symbols);
+
+                let picker: TreeView<LspTreeModel> = TreeView::new(model);
+                compositor.push(Box::new(overlayed(picker)))
+            } else {
+                log::debug!("flat");
+            }
+        },
+    );
 }

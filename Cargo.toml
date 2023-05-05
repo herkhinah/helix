@@ -20,6 +20,7 @@ default-members = [
 lto = "thin"
 # debug = true
 
+
 [profile.opt]
 inherits = "release"
 lto = "fat"
